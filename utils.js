@@ -33,78 +33,85 @@ function generateRandomString(length) {
 
 let isTTSPending = false;
 
-const handleTTS = async (text, lang, fileStream) => {
+const handleTTS = (text, lang, fileStream) => {
   isTTSPending = true;
 
   function linearInterpolate(sample1, sample2, fraction) {
     return sample1 * (1 - fraction) + sample2 * fraction;
   }
 
-  await axios("http://183.82.10.250:6631/tts_stream", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      text: text,
-      language: lang,
-      gpt_cond_latent: clone_speaker.gpt_cond_latent,
-      speaker_embedding: clone_speaker.speaker_embedding,
-      add_wav_header: false,
-    }),
-  })
+  axios
+    .post(
+      "http://183.82.10.250:6631/tts_stream",
+      {
+        text: text,
+        language: lang,
+        gpt_cond_latent: clone_speaker.gpt_cond_latent,
+        speaker_embedding: clone_speaker.speaker_embedding,
+        add_wav_header: false,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        responseType: "stream",
+      }
+    )
     .then((response) => {
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
+      //   if (!response.ok) {
+      //     throw new Error("Network response was not ok", response);
+      //   }
 
-      const reader = response.body.on("data", processAudioChunk);
-      let audioQueue = [];
-      let isStreamingFinished = false;
-      let nextSample = 0;
-      let amplitudeSum = 0; // Accumulator for amplitude values
-      let sampleCount = 0; // Counter for number of samples processed
+      response.data.pipe(fileStream);
 
-      function processAudioChunk(value) {
-        // Convert the incoming data to Int16Array and add it to the queue
-        const rawData = new Int16Array(
-          value.buffer,
-          value.byteOffset,
-          value.byteLength / 2
-        );
-        audioQueue = audioQueue.concat(Array.from(rawData));
+      //   const reader = response.body.on("data", processAudioChunk);
+      //   let audioQueue = [];
+      //   let isStreamingFinished = false;
+      //   let nextSample = 0;
+      //   let amplitudeSum = 0; // Accumulator for amplitude values
+      //   let sampleCount = 0; // Counter for number of samples processed
 
-        // reader.then(processAudioChunk);
-      }
-      response.body.on("end", () => {
-        isStreamingFinished = true;
-        // Create a WAV file header
-        const header = Buffer.alloc(44);
-        header.write("RIFF", 0);
-        header.writeUInt32LE(36 + int16Array.length * 2, 4); // Total file size
-        header.write("WAVE", 8);
-        header.write("fmt ", 12);
-        header.writeUInt32LE(16, 16); // PCM format
-        header.writeUInt16LE(1, 20); // Audio format (1 for PCM)
-        header.writeUInt16LE(1, 22); // Number of channels (1 for mono)
-        header.writeUInt32LE(44100, 24); // Sample rate (e.g., 44.1 kHz)
-        header.writeUInt32LE(44100 * 2, 28); // Byte rate (sample rate * block align)
-        header.writeUInt16LE(2, 32); // Block align (number of bytes per sample)
-        header.writeUInt16LE(16, 34); // Bits per sample
-        header.write("data", 36);
-        header.writeUInt32LE(int16Array.length * 2, 40); // Size of the data chunk
+      //   function processAudioChunk(value) {
+      //     // Convert the incoming data to Int16Array and add it to the queue
+      //     const rawData = new Int16Array(
+      //       value.buffer,
+      //       value.byteOffset,
+      //       value.byteLength / 2
+      //     );
+      //     audioQueue = audioQueue.concat(Array.from(rawData));
 
-        // Concatenate the header and the Int16Array
-        const wavData = Buffer.concat([header, Buffer.from(int16Array.buffer)]);
-        fileStream.write(wavData);
-        console.log("fileStream", fileStream);
-        return;
-      });
+      //     // reader.then(processAudioChunk);
+      //   }
+      //   response.body.on("end", () => {
+      //     isStreamingFinished = true;
+      //     // Create a WAV file header
+      //     const header = Buffer.alloc(44);
+      //     header.write("RIFF", 0);
+      //     header.writeUInt32LE(36 + int16Array.length * 2, 4); // Total file size
+      //     header.write("WAVE", 8);
+      //     header.write("fmt ", 12);
+      //     header.writeUInt32LE(16, 16); // PCM format
+      //     header.writeUInt16LE(1, 20); // Audio format (1 for PCM)
+      //     header.writeUInt16LE(1, 22); // Number of channels (1 for mono)
+      //     header.writeUInt32LE(44100, 24); // Sample rate (e.g., 44.1 kHz)
+      //     header.writeUInt32LE(44100 * 2, 28); // Byte rate (sample rate * block align)
+      //     header.writeUInt16LE(2, 32); // Block align (number of bytes per sample)
+      //     header.writeUInt16LE(16, 34); // Bits per sample
+      //     header.write("data", 36);
+      //     header.writeUInt32LE(int16Array.length * 2, 40); // Size of the data chunk
+
+      //     // Concatenate the header and the Int16Array
+      //     const wavData = Buffer.concat([header, Buffer.from(int16Array.buffer)]);
+      //     fileStream.write(wavData);
+      //     console.log("fileStream", fileStream);
+      //     return;
+      //   });
 
       //   reader.then(processAudioChunk);
     })
     .catch((error) => {
-      console.error("Error calling TTS service:", error);
+      console.error("Error calling TTS service", error);
+      return;
     });
 };
 

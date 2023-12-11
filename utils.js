@@ -6,7 +6,8 @@ const path = require("path");
 const fs = require("fs");
 const { resample } = require("./resampler");
 const logger = require("./logger");
-
+const inputSampleRate = 24000;
+const outputSampleRate = 16000;
 const apiKey = process.env.apiKey; // Replace with your actual API key
 
 // Combine the drive letter, folder name, and file name to create the full file path
@@ -17,7 +18,6 @@ const folderPath = path.join(driveLetter, "ari");
 if (!fs.existsSync(folderPath)) {
   fs.mkdirSync(folderPath, { recursive: true });
 }
-
 
 // Define your API endpoint and API key
 
@@ -49,6 +49,7 @@ const handleTTS = async (text, lang, fileStream) => {
       url: "http://183.82.10.250:6631/tts_stream",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/octet-stream",
       },
       data: {
         text: text,
@@ -69,31 +70,21 @@ const handleTTS = async (text, lang, fileStream) => {
 
     logger.info("streaming........");
     // Variables for linear interpolation
-
+    let currentIndex = 0;
+    let currentFraction = 0;
     // response.data.on("data", (chunk) => {
-    //   logger.info("chunk", chunk);
-    //   const float32Array = new Int16Array(chunk);
-
-    //   for (let i = 0; i < float32Array.length; i++) {
-    //     // Linear interpolation for resampling
-    //     const interpolatedValue = resample(
-    //       [float32Array[i]],
-    //       inputSampleRate,
-    //       outputSampleRate
-    //     )[0];
-
-    //     // Write the resampled value to the output file
-    //     fileStream.write(Buffer.from([interpolatedValue]));
-
-    //     // Update indices for linear interpolation
-    //     currentIndex++;
-    //     currentFraction += inputSampleRate / outputSampleRate;
-
-    //     if (currentFraction >= 1) {
-    //       currentIndex++;
-    //       currentFraction -= 1;
-    //     }
+    //   if (currentIndex === 0) {
+    //     logger.info("chunk-", Array.from(chunk.toString()));
+    //     logger.info("float32Array", new Int16Array(chunk));
     //   }
+    //   const float32Array = new Int16Array(Array.from(chunk));
+    //   const resamplerData = resample(
+    //     float32Array,
+    //     inputSampleRate,
+    //     outputSampleRate
+    //   );
+    //   currentIndex++;
+    //   fileStream.write(Buffer.from(resamplerData));
     // });
 
     response.data.once("data", () => {

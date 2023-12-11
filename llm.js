@@ -1,3 +1,4 @@
+require("dotenv").config({ path: ".env.local" });
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
@@ -94,8 +95,7 @@ function ElevenLabExec(text, params) {
   }
 }
 
-const apiKey = "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"; // Replace with your actual API key
-
+const apiKey = process.env.apiKey; // Replace with your actual API key
 // Make the request and handle the streamed response
 
 // async function callChatGPTAPI(prompt) {

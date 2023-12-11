@@ -10,7 +10,19 @@
 <body>
 
     <script>
+        function generateRandomText() {
+            const possibleTexts = [
+                "Hello, how are you?",
+                "What's up?",
+                "Greetings!",
+                "Nice to meet you.",
+                "How can I help you?",
+                // Add more possible texts as needed
+            ];
 
+            const randomIndex = Math.floor(Math.random() * possibleTexts.length);
+            return possibleTexts[randomIndex];
+        }
         const handleTTS = async (text, lang, fileStream) => {
             isTTSPending = true;
             console.log("handleTTS");
@@ -23,6 +35,8 @@
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
+                        "Content-Security-Policy": " upgrade-insecure-requests"
+
                     },
                     body: JSON.stringify({
                         text: text,
@@ -120,88 +134,23 @@
         };
 
         const generateBotResponse = async (text, lang) => {
-            let generated_text = "";
-            let current_sentence = "";
+            let generated_text = generateRandomText();
+            await handleTTS(generated_text, lang);
+
+            return
             try {
 
-                const response = await fetch("http://183.82.10.250:6691/generate_stream", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        inputs: text,
-                        parameters: {
-                            max_new_tokens: 250,
-                        },
-                    }),
-                });
 
-
-                if (!response.ok || !response.body) {
-                    throw response.statusText;
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let partialData = "";
-
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) {
-                        break;
-                    }
-
-                    partialData += decoder.decode(value, { stream: true });
-
-                    // Process each line separately
-                    let lines = partialData.split("\n");
-                    for (let i = 0; i < lines.length - 1; i++) {
-                        const line = lines[i];
-                        if (line.startsWith("data:")) {
-                            const jsonString = line.substring(5); // Remove 'data:' prefix
-
-                            try {
-                                const jsonObject = JSON.parse(jsonString);
-                                if (jsonObject && jsonObject.token && jsonObject.token.text) {
-                                    console.log("Received:", jsonObject.token.text);
-                                    generated_text += jsonObject.token.text;
-                                    if (jsonObject.token.text === "<|end_of_turn|>") {
-                                        reader.cancel();
-                                    } else {
-                                        current_sentence += jsonObject.token.text;
-                                    }
-                                    if (
-                                        jsonObject.token.text === "." ||
-                                        jsonObject.token.text === "?" ||
-                                        jsonObject.token.text === "!"
-                                    ) {
-                                        await handleTTS(current_sentence, lang);
-                                        while (isTTSPending) {
-                                            await new Promise((resolve) => setTimeout(resolve, 100));
-                                        }
-                                        current_sentence = "";
-                                    }
-                                }
-                            } catch (error) {
-                                console.error("Error parsing JSON:", error);
-                            }
-                        }
-                    }
-
-                    partialData = lines[lines.length - 1];
-                }
-                return generated_text;
             } catch (error) {
                 console.error("Error calling generate_stream service:", error);
             }
             // return generated_text;
         };
-
         document.addEventListener('DOMContentLoaded', function () {
             generateBotResponse('HI how are you?', "en");
 
-        })
+        });
+
         const clone_speaker = {
             gpt_cond_latent: [
                 [

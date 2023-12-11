@@ -2,13 +2,12 @@ const axios = require("axios");
 const { clone_speaker } = require("./const");
 const { Readable } = require("stream");
 const { Writable } = require("stream");
-const Wav = require("wav");
 const path = require("path");
 const fs = require("fs");
 const { resample } = require("./resampler");
 const logger = require("./logger");
 
-const apiKey = "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"; // Replace with your actual API key
+const apiKey = process.env.apiKey; // Replace with your actual API key
 
 // Combine the drive letter, folder name, and file name to create the full file path
 const driveLetter = "C:"; // Replace with the drive letter you want to write to
@@ -19,14 +18,8 @@ if (!fs.existsSync(folderPath)) {
   fs.mkdirSync(folderPath, { recursive: true });
 }
 
-const inputSampleRate = 24000; // Example input sample rate
-const outputSampleRate = 16000; // Example output sample rate
 
 // Define your API endpoint and API key
-const apiUrl =
-  "https://api.elevenlabs.io/v1/text-to-speech/onwK4e9ZLuTAKqWW03F9/stream";
-const xiApiKey = "26d1a0dec62339e9124ad5d08e3f618c";
-const CHUNK_SIZE = 1024;
 
 function generateRandomString(length) {
   const characters =
@@ -43,13 +36,10 @@ function generateRandomString(length) {
 
 let isTTSPending = false;
 
-const handleTTS = async (text, lang, fileStream, res) => {
+const handleTTS = async (text, lang, fileStream) => {
   isTTSPending = true;
   const time1 = new Date().getTime();
   logger.info("handleTTS");
-  function linearInterpolate(sample1, sample2, fraction) {
-    return sample1 * (1 - fraction) + sample2 * fraction;
-  }
   // Create a writable stream for the WAV file
 
   try {
@@ -79,8 +69,6 @@ const handleTTS = async (text, lang, fileStream, res) => {
 
     logger.info("streaming........");
     // Variables for linear interpolation
-    let currentIndex = 0;
-    let currentFraction = 0;
 
     // response.data.on("data", (chunk) => {
     //   logger.info("chunk", chunk);
@@ -281,25 +269,6 @@ function timeString(isPrev = false, time2) {
 }
 function getTimeDifferenceInMilliseconds(date1, date2) {
   return Math.abs(date1 - date2);
-}
-function resampleAudioBuffer(inputBuffer, inputSampleRate, outputSampleRate) {
-  const ratio = inputSampleRate / outputSampleRate;
-  const outputBufferLength = Math.floor(inputBuffer.length / ratio);
-
-  const outputBuffer = new Float32Array(outputBufferLength);
-
-  for (let i = 0; i < outputBufferLength; i++) {
-    const inputIndex = i * ratio;
-    const floor = Math.floor(inputIndex);
-    const ceil = Math.ceil(inputIndex);
-
-    const fraction = inputIndex - floor;
-
-    outputBuffer[i] =
-      inputBuffer[floor] + fraction * (inputBuffer[ceil] - inputBuffer[floor]);
-  }
-
-  return outputBuffer;
 }
 module.exports = {
   timeString,

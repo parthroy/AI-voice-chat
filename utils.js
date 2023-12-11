@@ -5,8 +5,10 @@ const { Writable } = require("stream");
 const Wav = require("wav");
 const path = require("path");
 const fs = require("fs");
+const { resample } = require("./resampler");
+const logger = require("./logger");
 
-const apiKey = "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"; // Replace with your actual API key
+const apiKey = "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"; // Replace with your actual API key
 
 // Combine the drive letter, folder name, and file name to create the full file path
 const driveLetter = "C:"; // Replace with the drive letter you want to write to
@@ -16,6 +18,10 @@ const folderPath = path.join(driveLetter, "ari");
 if (!fs.existsSync(folderPath)) {
   fs.mkdirSync(folderPath, { recursive: true });
 }
+
+const inputSampleRate = 24000; // Example input sample rate
+const outputSampleRate = 16000; // Example output sample rate
+
 // Define your API endpoint and API key
 const apiUrl =
   "https://api.elevenlabs.io/v1/text-to-speech/onwK4e9ZLuTAKqWW03F9/stream";
@@ -39,7 +45,8 @@ let isTTSPending = false;
 
 const handleTTS = async (text, lang, fileStream, res) => {
   isTTSPending = true;
-  console.log("handleTTS");
+  const time1 = new Date().getTime();
+  logger.info("handleTTS");
   function linearInterpolate(sample1, sample2, fraction) {
     return sample1 * (1 - fraction) + sample2 * fraction;
   }
@@ -65,43 +72,58 @@ const handleTTS = async (text, lang, fileStream, res) => {
     };
     const response = await axios(config);
     if (!response.status === 200 || !response.data) {
-      console.log("error in tts");
+      logger.info("error in tts");
       return;
       // throw new Error(response.statusText);
     }
-    // const fileName = generateRandomString(10);
 
-    // const outputPath = path.join(folderPath, fileName + ".wav");
-    // const fileStream1 = fs.createWriteStream(outputPath);
+    logger.info("streaming........");
+    // Variables for linear interpolation
+    let currentIndex = 0;
+    let currentFraction = 0;
 
-    //   if (!response.ok) {
-    //     throw new Error("Network response was not ok", response);
+    // response.data.on("data", (chunk) => {
+    //   logger.info("chunk", chunk);
+    //   const float32Array = new Int16Array(chunk);
+
+    //   for (let i = 0; i < float32Array.length; i++) {
+    //     // Linear interpolation for resampling
+    //     const interpolatedValue = resample(
+    //       [float32Array[i]],
+    //       inputSampleRate,
+    //       outputSampleRate
+    //     )[0];
+
+    //     // Write the resampled value to the output file
+    //     fileStream.write(Buffer.from([interpolatedValue]));
+
+    //     // Update indices for linear interpolation
+    //     currentIndex++;
+    //     currentFraction += inputSampleRate / outputSampleRate;
+
+    //     if (currentFraction >= 1) {
+    //       currentIndex++;
+    //       currentFraction -= 1;
+    //     }
     //   }
-    // response.data.pipe(fileStream);
-    // const buffer = Buffer.from(response.data);
-    // const reader = new Wav.Reader();
-    // reader.end(buffer);
-    // reader.pipe(fileStream);
-
-    // fileStream.write(buffer);
-
-    console.log("streaming........");
-    // response.data.on("data", async (chunk) => {
-    //   fileStream.write(chunk);
     // });
-    // fs.writeFileSync(filePath, audioData, { flag: 'a' });
-    // response.data.pipe(fileStream1);
-    // fs.writeFileSync(outputPath, response.data, { flag: 'a' });
 
     response.data.once("data", () => {
-      console.log("----------TTS first response arrived----------");
-      console.log(timeString());
-      console.log("-------------------------------");
+      logger.info("----------TTS first response arrived----------");
+      logger.info(timeString(true, time1));
+      logger.info("-------------------------------");
+    });
+    response.data.on("end", () => {
+      // Perform any additional actions when the streaming response ends
+      logger.info("Streaming response ended.");
+
+      // Close the writable stream
+      fileStream.end();
     });
     // Pipe the received stream to the writable stream
     response.data.pipe(fileStream);
 
-    // console.log("response data", response.data);
+    // logger.info("response data", response.data);
   } catch (error) {
     console.error("Error calling TTS service", error);
     return;
@@ -153,7 +175,7 @@ const generateBotResponse = async (text, lang) => {
           try {
             const jsonObject = JSON.parse(jsonString);
             if (jsonObject && jsonObject.token && jsonObject.token.text) {
-              console.log("Received:", jsonObject.token.text);
+              logger.info("Received:", jsonObject.token.text);
               generated_text += jsonObject.token.text;
               if (jsonObject.token.text === "") {
                 // You might want to handle the completion logic here
@@ -183,12 +205,12 @@ const generateBotResponse = async (text, lang) => {
     });
 
     response.data.on("end", () => {
-      console.log("end of llm respose");
+      logger.info("end of llm respose");
       // Handle the end of the stream
       // fileStream.end();
     });
     fileStream.on("close", () => {
-      console.log(`Audio saved to ${outputPath}`);
+      logger.info(`Audio saved to ${outputPath}`);
     });
   } catch (error) {
     console.error("Error calling generate_stream service:", error.message);
@@ -214,7 +236,7 @@ async function callChatGPTAPI(prompt) {
         content: prompt,
       },
     ],
-    max_tokens: 100,
+    max_tokens: 50,
   };
 
   const headers = {
@@ -231,7 +253,7 @@ async function callChatGPTAPI(prompt) {
       return response.data.choices[0].message.content;
     })
     .catch((error) => {
-      console.error("API call failed:", error);
+      console.error("API call failed:", error.message);
       throw error;
     });
 }
@@ -246,12 +268,39 @@ function getCurrentTime() {
     miliSeconds: now.getMilliseconds(),
   };
 }
-function timeString() {
+function timeString(isPrev = false, time2) {
   const currentTime = getCurrentTime();
 
+  if (isPrev) {
+    logger.info(
+      "Time diff",
+      getTimeDifferenceInMilliseconds(time2, new Date().getTime())
+    );
+  }
   return `${currentTime.hour}:${currentTime.minute}:${currentTime.second}   - ${currentTime.miliSeconds}`;
 }
+function getTimeDifferenceInMilliseconds(date1, date2) {
+  return Math.abs(date1 - date2);
+}
+function resampleAudioBuffer(inputBuffer, inputSampleRate, outputSampleRate) {
+  const ratio = inputSampleRate / outputSampleRate;
+  const outputBufferLength = Math.floor(inputBuffer.length / ratio);
 
+  const outputBuffer = new Float32Array(outputBufferLength);
+
+  for (let i = 0; i < outputBufferLength; i++) {
+    const inputIndex = i * ratio;
+    const floor = Math.floor(inputIndex);
+    const ceil = Math.ceil(inputIndex);
+
+    const fraction = inputIndex - floor;
+
+    outputBuffer[i] =
+      inputBuffer[floor] + fraction * (inputBuffer[ceil] - inputBuffer[floor]);
+  }
+
+  return outputBuffer;
+}
 module.exports = {
   timeString,
   getCurrentTime,

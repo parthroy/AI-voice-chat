@@ -1,7 +1,7 @@
 require("dotenv").config({ path: ".env.local" });
 const uuid = require("uuid");
 const WebSocket = require("ws");
-
+const logger = require("./logger");
 const path = require("path");
 const fs = require("fs");
 const https = require("https");
@@ -10,7 +10,6 @@ const http = require("http");
 const util = require("util");
 const { generateBotResponse, timeString } = require("./utils");
 const { ElevenLabExec, ElevenLabExec1 } = require("./llm");
-
 // Define APP
 const app = express();
 const port = process.env.PORT;

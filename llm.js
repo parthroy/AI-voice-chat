@@ -183,9 +183,9 @@ function ElevenLabExec1(text, lang, res) {
     const outputPath = path.join(folderPath, fileName + ".wav");
     // const fileStream = fs.createWriteStream(outputPath);
     const fileStream = new Wav.FileWriter(outputPath, {
-      channels: 2, // Number of audio channels (1 for mono, 2 for stereo)
-      sampleRate: 16000, // Sample rate in Hz
-      bitDepth: 16, // Bit depth per sample
+      channels: 1, // Number of audio channels (1 for mono, 2 for stereo)
+      sampleRate: 24000, // Sample rate in Hz
+      // bitDepth: 16, // Bit depth per sample
     });
     callChatGPTAPI(text)
       .then((response) => {

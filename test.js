@@ -46,8 +46,8 @@ app.post("/sendMsg", (req, res) => {
     console.log("----------Msg arrived----------");
     console.log(timeString());
     console.log("-------------------------------");
-    ElevenLabExec1(req.body.text, "en", res);
-    // ElevenLabExec(req.body.text, { res: res });
+    // ElevenLabExec1(req.body.text, "en", res);
+    ElevenLabExec(req.body.text, { res: res });
     // return res.status(200).json({ msg: "send text successfuly!" });
   } else {
     res.status(400).json({ msg: "Not valid text!" });

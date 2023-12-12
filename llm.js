@@ -5,6 +5,7 @@ const path = require("path");
 const OpenAI = require("openai");
 const { callChatGPTAPI, handleTTS, timeString } = require("./utils");
 const Wav = require("wav");
+const { eosMessage, sendText, init } = require("./elevanlab");
 
 // Define your API endpoint and API key
 const apiUrl =
@@ -78,18 +79,51 @@ async function generateTextToSpeech(text, writeStream, fileName) {
 // Example usage
 function ElevenLabExec(text, params) {
   try {
-    const { webScoket, agent, connectionId, ...others } = params;
+    try {
+      const fileName = new Date().getTime();
+      // const fileName = generateRandomString(10);
 
-    x = 0;
-    callChatGPTAPI(text);
-    //   .then((response) => {
-    //     console.log("connectionId:", text);
-    //     console.log("API response:", response);
-    //     generateTextToSpeech(response, params);
-    //   })
-    //   .catch((error) => {
-    //     // console.error("Error:", error);
-    //   });
+      const outputPath = path.join(folderPath, fileName + ".wav");
+      // const fileStream = fs.createWriteStream(outputPath);
+      const fileStream = new Wav.FileWriter(outputPath, {
+        channels: 1, // Number of audio channels (1 for mono, 2 for stereo)
+        sampleRate: 16000, // Sample rate in Hz
+        // bitDepth: 16, // Bit depth per sample
+      });
+      callChatGPTAPI(text)
+        .then((response) => {
+          console.log("----------ChaGPT response arrived----------");
+          console.log(timeString());
+          console.log("-------------------------------");
+          console.log("text:", text);
+          console.log("API response:", response);
+          init({ text: response });
+          // sendText({ text: response });
+          eosMessage();
+          // handleTTS(response, "en", fileStream, res);
+        })
+        .catch((error) => {
+          // console.error("Error:", error);
+        });
+      fileStream.on("close", () => {
+        console.log(`Audio saved to ${outputPath}`);
+      });
+      fileStream.on("finish", () => {
+        console.log("Piping finished.");
+        console.log("----------TTS response ended----------");
+        console.log(timeString());
+        console.log("-------------------------------");
+        res.send({
+          path: outputPath,
+        });
+      });
+
+      fileStream.on("error", (err) => {
+        console.error("Error:", err);
+      });
+    } catch (error) {
+      // console.error("Error:", error);
+    }
   } catch (error) {
     // console.error("Error:", error);
   }

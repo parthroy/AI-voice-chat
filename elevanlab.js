@@ -48,7 +48,7 @@ async function handleStream(llmResponse, { socket, fileStream }) {
               // } else {
               sendText({ text: chunk });
               // }
-              logger.info(chunk, new Date().getTime());
+              logger.info(chunk + "\t\t" + new Date().getTime().toString());
             }
           } catch (error) {
             logger.info(
@@ -76,7 +76,9 @@ async function handleStream(llmResponse, { socket, fileStream }) {
     // logger.info("Server response:", response);
 
     if (response.audio) {
-      logger.info("Received audio chunk", new Date().getTime());
+      logger.info(
+        "Received audio chunk \t\t" + new Date().getTime().toString()
+      );
       const audioChunk = Buffer.from(response.audio, "base64");
       fileStream.write(audioChunk);
     } else {

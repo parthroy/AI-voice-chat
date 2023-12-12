@@ -9,7 +9,7 @@ function createConncetion() {
   const wsUrl = `wss://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream-input?model_id=${model}&output_format=${output_format}`;
   const socket = new WebSocket(wsUrl);
   socket.onopen = function (event) {
-    logger.info("connection open");
+    logger.info("connection open", new Date().getTime().toString());
   };
   return socket;
 }

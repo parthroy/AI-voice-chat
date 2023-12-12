@@ -1,28 +1,23 @@
 require("dotenv").config({ path: ".env.local" });
 const axios = require("axios");
-const fs = require("fs");
 const path = require("path");
-const OpenAI = require("openai");
 const apiKey = process.env.apiKey; // Replace with your actual API key
-const { callChatGPTAPI, handleTTS, timeString } = require("./utils");
+const { timeString } = require("./utils");
 const Wav = require("wav");
 const { handleStream } = require("./elevanlab");
 const socketConnections = require("./socketConnections");
+const logger = require("./logger");
 
 const driveLetter = "C:"; // Replace with the drive letter you want to write to
 // Combine the drive letter, folder name, and file name to create the full file path
 const folderPath = path.join(driveLetter, "xampp", "htdocs", "ari");
 const endpoint = "https://api.openai.com/v1/chat/completions";
 
-const openai = new OpenAI({
-  apiKey: apiKey,
-});
-
 async function llm({ text, res }) {
   const socket = socketConnections();
   const fileName = new Date().getTime();
   // const fileName = generateRandomString(10);
-
+  logger.info(new Date().getTime().toString());
   const outputPath = path.join(folderPath, fileName + ".wav");
   // const fileStream = fs.createWriteStream(outputPath);
   const fileStream = new Wav.FileWriter(outputPath, {
@@ -51,18 +46,6 @@ async function llm({ text, res }) {
     "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`,
   };
-  //   const completion = await openai.chat.completions.create({
-  //     model: "gpt-3.5-turbo",
-  //     messages: [
-  //       { role: "system", content: "You are a helpful assistant." },
-  //       { role: "user", content: "Hello!" },
-  //     ],
-  //     stream: true,
-  //   });
-  //   handleStream(completion, {
-  //     fileStream: fileStream,
-  //     res: res,
-  //   })(completion);
 
   fileStream.on("close", () => {
     console.log(`Audio saved to ${outputPath}`);

@@ -5,7 +5,7 @@ const path = require("path");
 const OpenAI = require("openai");
 const { callChatGPTAPI, handleTTS, timeString } = require("./utils");
 const Wav = require("wav");
-const { eosMessage, sendText, init } = require("./elevanlab");
+const textToSpeech = require("./elevanlab");
 
 // Define your API endpoint and API key
 const apiUrl =
@@ -77,7 +77,7 @@ async function generateTextToSpeech(text, writeStream, fileName) {
 }
 
 // Example usage
-function ElevenLabExec(text, params) {
+function ElevenLabExec(text, { res }) {
   try {
     try {
       const fileName = new Date().getTime();
@@ -88,7 +88,7 @@ function ElevenLabExec(text, params) {
       const fileStream = new Wav.FileWriter(outputPath, {
         channels: 1, // Number of audio channels (1 for mono, 2 for stereo)
         sampleRate: 16000, // Sample rate in Hz
-        // bitDepth: 16, // Bit depth per sample
+        bitDepth: 16, // Bit depth per sample
       });
       callChatGPTAPI(text)
         .then((response) => {
@@ -97,9 +97,13 @@ function ElevenLabExec(text, params) {
           console.log("-------------------------------");
           console.log("text:", text);
           console.log("API response:", response);
-          init({ text: response });
-          // sendText({ text: response });
-          eosMessage();
+          const time1 = new Date().getTime();
+
+          textToSpeech({
+            text: response,
+            fileStream: fileStream,
+            time1: time1,
+          });
           // handleTTS(response, "en", fileStream, res);
         })
         .catch((error) => {

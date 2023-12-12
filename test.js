@@ -10,6 +10,7 @@ const http = require("http");
 const util = require("util");
 const { generateBotResponse, timeString } = require("./utils");
 const { ElevenLabExec, ElevenLabExec1 } = require("./llm");
+const { llm } = require("./chatGPT");
 // Define APP
 const app = express();
 const port = process.env.PORT;
@@ -46,8 +47,9 @@ app.post("/sendMsg", (req, res) => {
     console.log("----------Msg arrived----------");
     console.log(timeString());
     console.log("-------------------------------");
+    llm({ text: req.body.text, res: res });
     // ElevenLabExec1(req.body.text, "en", res);
-    ElevenLabExec(req.body.text, { res: res });
+    // ElevenLabExec(req.body.text, { res: res });
     // return res.status(200).json({ msg: "send text successfuly!" });
   } else {
     res.status(400).json({ msg: "Not valid text!" });
